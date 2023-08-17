@@ -1,0 +1,168 @@
+@RestResource(urlMapping='/products/*')
+global class ProductRestAPI {
+    @HttpGet
+    global static ProductDetail getProducts(){
+        RestRequest req = RestContext.request;
+        RestResponse res = RestContext.response;
+        
+        String prdtId = req.requestURI.substring(req.requestURI.lastIndexOf('/')+1);
+        
+        ProductDetail response = new ProductDetail();
+        
+        if (string.isBlank(prdtId)){
+            system.debug('prdtId == ' + prdtId);
+            response.success = false;
+            response.message = 'Product ID is required';
+            res.statusCode = 400;
+        } else {
+            system.debug('prdtId == ' + prdtId);
+            List<Product__c> prdtList = [SELECT Id, Name,Product_code__c FROM Product__c WHERE Id = :prdtId];
+            System.debug('prdtList=='+ prdtList);
+
+            //prdtList == null
+            if (prdtList.isEmpty()) {
+                response.success = false;
+                response.message = 'There is no Product with the Id';
+                res.statusCode = 400;
+            }else{
+                response.success = true;
+                response.message = 'Product details retrieved successfully';
+                response.productId = prdtList[0].Id;
+                response.productName =  prdtList[0].Name;
+                response.productCode = prdtList[0].Product_code__c;
+                res.statusCode = 200; 
+            }
+        }  
+        
+        return response;
+    }
+    
+    @HttpDelete
+    global static ProductDetail deleteProducts(){
+        //create a new instance for product object
+        List<Product__c> product = new List <Product__c>();
+        RestResponse res = RestContext.response;
+        RestRequest req = RestContext.request;    
+        String prodId = req.requestURI.substring(req.requestURI.lastIndexOf('/')+1);
+        
+        ProductDetail response = new ProductDetail();
+        //Query the product record
+        product = [Select Id, Name, Product_Code__c From Product__c Where Id =: prodId];
+        system.debug('prod=='+prod);
+        if (string.isBlank(prodId)){
+            system.debug('prodId == ' + prodId);
+            response.success = false;
+            response.message = 'Product ID is required';
+            res.statusCode = 400;
+        } else {
+            system.debug('prodId == ' + prodId);
+            System.debug('product=='+ product);
+            //product == null
+            if (product.isEmpty()) {
+                response.success = false;
+                response.message = 'There is no Product with the Id';
+                res.statusCode = 400;
+            }else{
+                //Delete the product from salesforce
+                Delete prod;
+                response.success = true;
+                response.message = 'Product deleted successfully';
+                response.productId = product[0].Id;
+                response.productName =  product[0].Name;
+                response.productCode = product[0].Product_code__c;
+                res.statusCode = 200; 
+            }
+        } 
+        
+    }
+    
+    @HttpPost
+    //Name and ProductCode will come from external system as a input
+    global static ProductDetail createProducts( String Name, String ProductCode){
+        //Create an instance of products
+        Product__c product = new Product__c();
+        ProductDetail response = new ProductDetail();
+        //Map the input params to name and productCode
+        product.Name = Name;
+        product.Product_Code__c = ProductCode;
+        
+        if(string.isBlank(product.Name)){
+            response.message = 'Product Name is required';
+            response.success= false;   
+        }    else{
+            //insert the product
+            insert product;
+            response.success = true;
+            response.message = 'Product Inserted successfully';
+            response.productId = product.Id;
+            response.productName =  product.Name; 
+            response.productCode = product.Product_code__c;
+            
+        }
+        
+        //Return this product to the third party system as a response
+        return response;  
+    } 
+    
+    
+    @HttpPatch
+    //Name and ProductCode will come from external system as a input
+    global static ProductDetail updateProducts( String Name, String ProductCode){
+        
+        RestRequest req = RestContext.request;
+        RestResponse res = RestContext.response;
+        
+        //String prdtRequestURI = req.requestURI;
+        
+        String prodId = req.requestURI.substring(req.requestURI.lastIndexOf('/')+1);
+        
+        //String requestBody = req.requestBody.toString();
+        ProductDetail response = new ProductDetail();
+        
+        //Create an instance of products
+        List<Product__c> product = new List <Product__c>();
+        
+        //Map the input params to Id, name and productCode 
+        
+        if (string.isBlank(prodId)){
+            system.debug('prodId == ' + prodId);
+            response.message = 'Product ID is required';
+            response.success= false;
+        }else{
+            product = [Select Id, Name, Product_Code__c From Product__c Where Id =: prodId];
+            if(product.isEmpty()){
+                response.message = 'There is no Product with the Id';
+                response.success=false;
+            }else{
+                product[0].Id = prodId;
+                product[0].Name = Name;
+                product[0].Product_Code__c = ProductCode;
+
+                //update the product
+                update product;
+
+                response.success = true;
+                response.message = 'Product Updated successfully';
+                response.productId = product[0].Id;
+                response.productName =  product[0].Name;
+                response.productCode = product[0].Product_code__c;
+                res.statusCode = 200; 
+                
+            }
+            
+        }
+        
+        
+        //Return this product to the third party system as a response
+        return response; 
+    } 
+        
+    global class ProductDetail {
+        global Boolean success;
+        global String message;
+        global String productId;
+        global String productName;
+        global String productCode;
+    }
+    
+}
